@@ -103,21 +103,28 @@ describe("buildObjectivesGraph", () => {
     }
   });
 
-  it("matches the real lib/tavus/objectives-config.json template: 50 nodes, acyclic reexplain->retest->{gentle_correct|confirm}", () => {
+  it("matches the real lib/tavus/objectives-config.json template: 54 nodes (1 lead-in + 4 prefill + 48 panel + 1 terminal), acyclic reexplain->retest->{gentle_correct|confirm}", () => {
     const template = JSON.parse(
       readFileSync(path.resolve(process.cwd(), "lib/tavus/objectives-config.json"), "utf8")
     );
     const { data } = buildObjectivesGraph(template);
-    expect(data).toHaveLength(1 + template.panelChain.length * 8 + 1);
+    expect(data).toHaveLength(1 + template.prefillChain.length + template.panelChain.length * 8 + 1);
 
     const names = new Set(data.map((n) => n.objective_name));
     for (let n = 1; n <= 8; n++) {
       expect(names.has(`panel_${n}_retest`)).toBe(true);
       expect(names.has(`panel_${n}_gentle_correct`)).toBe(true);
     }
+    for (let n = 1; n <= 4; n++) {
+      expect(names.has(`prefill_panel_${n}`)).toBe(true);
+    }
 
     // The leadIn catch-all (Task 1) must still route difficulty 0 into panel_1_await.
     expect(data[0].next_conditional_objectives.panel_1_await).toContain("missing, unrecognized, or ambiguous");
+    // Prefill is now a per-panel checkpoint chain, not one self-counted loop (fixes the
+    // observed live stall: 3 of 4 prefill panels logged, then nothing).
+    expect(data[0].next_conditional_objectives.prefill_panel_1).toBeDefined();
+    expect(names.has("prefill_panel_1")).toBe(true);
   });
 });
 

@@ -44,6 +44,14 @@ export function buildObjectivesGraph(template) {
     next_conditional_objectives: { ...template.leadIn.conditional },
   });
 
+  // Fixed, non-repeating nodes (unlike panelChain, never {N}-expanded or
+  // looped over panelNumbers) — one per prefilled panel, so a stall has a
+  // structural checkpoint to be caught at instead of relying on the model
+  // self-counting "1 through the difficulty count" in one silent turn.
+  for (const node of template.prefillChain || []) {
+    data.push({ ...node });
+  }
+
   panelNumbers.forEach((n, i) => {
     const nextPanel = panelNumbers[i + 1];
     for (const step of template.panelChain) {

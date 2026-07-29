@@ -1,15 +1,43 @@
 {
-  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + 1 terminal = 34 nodes) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel. Rewritten 2026-07-29 per docs.tavus.io/sections/onboarding-guide/objectives (one objective per distinct outcome, name tool calls explicitly, keep the PAL system prompt from conflicting with the objectives) to fix panels not reliably logging: every step now explicitly names log_zine_page / log_understanding_check / canvas_clear, and the test/retest/reexplain steps explicitly choose a canvas.question Magic Canvas card for discrete-option questions vs. an explicit spoken instruction to answer on Excalidraw and click Send for open-ended ones.",
+  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + up to 4 prefill nodes + 1 terminal = up to 38 nodes) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel. Rewritten 2026-07-29 per docs.tavus.io/sections/onboarding-guide/objectives (one objective per distinct outcome, name tool calls explicitly, keep the PAL system prompt from conflicting with the objectives) to fix panels not reliably logging: every step now explicitly names log_zine_page / log_understanding_check / canvas_clear, and the test/retest/reexplain steps explicitly choose a canvas.question Magic Canvas card for discrete-option questions vs. an explicit spoken instruction to answer on Excalidraw and click Send for open-ended ones. Prefill (0/2/4 worked-example panels) was originally ONE objective asking the model to silently self-loop 'panel_number 1 through the difficulty count' in a single turn — observed live to stall partway (e.g. 3 of 4 panels logged, then nothing) with no structural checkpoint to catch it. Decomposed 2026-07-29 into explicit prefillChain nodes, one per prefilled panel, same one-objective-per-outcome fix already applied to the main loop.",
   "leadIn": {
     "objective_name": "generate_prefill_examples",
-    "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. Say the sentence in this paragraph only ONCE, never repeat it even if nothing seems to happen afterward. If the difficulty is greater than 0: say ONE brief sentence that you're pulling together a few worked examples, then silently call the log_zine_page tool once per panel (source \"prefill\"), panel_number 1 through the difficulty count, back to back with no spoken explanation in between — never speak or write the words \"log_zine_page\", its arguments, or any JSON, and never narrate or summarize any panel's content aloud; the student should hear only that one opening sentence, then nothing else until this step is done. This whole step is setup, not teaching, and must finish within the first minute of the session — time here counts against the 15-minute session. Each example must still be distinct, real, and grounded in the attached material, never a placeholder or a repeat of another panel, even though it is never spoken. If the difficulty is 0, skip this step and say so in one brief sentence before moving on to the first panel.",
+    "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. If the difficulty is 0, skip prefill entirely: say one brief sentence transitioning into the first panel, then move on to it. If the difficulty is 2 or 4, say ONE brief sentence that you're pulling together a few worked examples — say this only once, never repeat it — then proceed silently into the prefill step; do not narrate, summarize, or announce it again.",
     "confirmation_mode": "auto",
     "conditional": {
       "panel_1_await": "the session context states the difficulty is 0, or the difficulty value is missing, unrecognized, or ambiguous — default to the full write-everything path rather than guessing",
-      "panel_3_await": "the session context states the difficulty is 2",
-      "panel_5_await": "the session context states the difficulty is 4"
+      "prefill_panel_1": "the session context states the difficulty is 2 or 4"
     }
   },
+  "prefillChain": [
+    {
+      "objective_name": "prefill_panel_1",
+      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 1, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder. Never speak or write the words \"log_zine_page\", its arguments, or any JSON, and never narrate or summarize this panel's content aloud.",
+      "confirmation_mode": "auto",
+      "next_required_objective": "prefill_panel_2"
+    },
+    {
+      "objective_name": "prefill_panel_2",
+      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 2, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of panel 1. Never speak, narrate, or summarize this aloud.",
+      "confirmation_mode": "auto",
+      "next_conditional_objectives": {
+        "panel_3_await": "the session context states the difficulty is 2 — prefill is complete, move straight into the interactive panels",
+        "prefill_panel_3": "the session context states the difficulty is 4 — two more panels still need to be pre-filled"
+      }
+    },
+    {
+      "objective_name": "prefill_panel_3",
+      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 3, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of an earlier panel. Never speak, narrate, or summarize this aloud.",
+      "confirmation_mode": "auto",
+      "next_required_objective": "prefill_panel_4"
+    },
+    {
+      "objective_name": "prefill_panel_4",
+      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 4, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of an earlier panel. Never speak, narrate, or summarize this aloud. Once logged, prefill is complete — move on to the interactive panels.",
+      "confirmation_mode": "auto",
+      "next_required_objective": "panel_5_await"
+    }
+  ],
   "panelChain": [
     {
       "suffix": "await",
