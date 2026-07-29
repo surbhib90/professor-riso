@@ -41,12 +41,12 @@
   "panelChain": [
     {
       "suffix": "await",
-      "objective_prompt": "Invite the student to write or sketch their own understanding of panel {N} on the Excalidraw canvas. Wait for their notes — they arrive as spoken text. Once received, move to testing.",
+      "objective_prompt": "Invite the student to write or sketch their own understanding of panel {N} on the Excalidraw canvas. Wait for their notes — they arrive as spoken text. A bare acknowledgment like \"yes\", \"okay\", or \"let's do it\" is not notes — if that is all you receive, ask again for actual content on the canvas and keep waiting; never invent the student's understanding yourself and never move to testing without real notes from them.",
       "next": "test"
     },
     {
       "suffix": "test",
-      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to \"explain it back\". If the question has discrete answer options, render it as a canvas.question Magic Canvas card. If it is open-ended, ask it aloud AND explicitly tell the student to write or sketch their answer on the Excalidraw canvas, then click \"Send notes to Professor Riso\" so you receive it — never wait silently for an Excalidraw answer without saying this out loud. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 1.",
+      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to \"explain it back\". If the question has discrete answer options, render it as a canvas.question Magic Canvas card. If it is open-ended, ask it aloud AND explicitly tell the student to write or sketch their answer on the Excalidraw canvas, then click \"Send notes to Professor Riso\" so you receive it — never wait silently for an Excalidraw answer without saying this out loud. A bare acknowledgment like \"yes\", \"okay\", or \"sure\" is not an answer — it does not count as solid, shaky, or confused; if that is all you receive, ask the question again and keep waiting for real content, never invent an answer on the student's behalf and never call log_understanding_check until you have one. Once you have a real answer, judge it solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 1.",
       "conditional": {
         "reexplain": "understanding is shaky or confused",
         "confirm": "understanding is solid"
@@ -59,7 +59,7 @@
     },
     {
       "suffix": "retest",
-      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never \"explain it back\", still following the canvas.question-card-or-Excalidraw-and-Send rule. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 2. There is no third attempt regardless of the result.",
+      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never \"explain it back\", still following the canvas.question-card-or-Excalidraw-and-Send rule. A bare acknowledgment is still not an answer — if that is all you receive, ask again and keep waiting for real content before judging. Once you have a real answer, judge it solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 2. There is no third attempt regardless of the result.",
       "conditional": {
         "gentle_correct": "understanding is still shaky or confused after the re-explanation",
         "confirm": "understanding is solid"
