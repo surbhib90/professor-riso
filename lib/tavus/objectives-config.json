@@ -1,0 +1,56 @@
+{
+  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + 1 terminal = 34 nodes) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel.",
+  "leadIn": {
+    "objective_name": "generate_prefill_examples",
+    "objective_prompt": "The session context names the difficulty pick (0, 2, or 4) and the concept, and course material is attached for grounding. If the difficulty is greater than 0, briefly tell the student you're pulling together a few worked examples from the course material, then call log_zine_page once per prefilled panel — panel_number 1 through the difficulty count, source \"prefill\" — each one a distinct, real worked example grounded in the attached material, never a placeholder or a repeat of another panel. Narrating while you do this is fine and expected; there is no need to rush or stay silent. If the difficulty is 0, skip this step and say so briefly before moving on to the first panel.",
+    "confirmation_mode": "auto",
+    "conditional": {
+      "panel_1_await": "the session context states the difficulty is 0, or the difficulty value is missing, unrecognized, or ambiguous — default to the full write-everything path rather than guessing",
+      "panel_3_await": "the session context states the difficulty is 2",
+      "panel_5_await": "the session context states the difficulty is 4"
+    }
+  },
+  "panelChain": [
+    {
+      "suffix": "await",
+      "objective_prompt": "Invite the student to write or sketch their understanding of panel {N} on the shared canvas. Wait for their notes — they arrive as spoken text. Once received, move to testing.",
+      "next": "test"
+    },
+    {
+      "suffix": "test",
+      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to re-explain what they wrote. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 1.",
+      "conditional": {
+        "reexplain": "understanding is shaky or confused",
+        "confirm": "understanding is solid"
+      }
+    },
+    {
+      "suffix": "reexplain",
+      "objective_prompt": "Re-explain panel {N} more simply, from a different angle. Ask the student to answer once more — either revise their notes or answer a new small problem. This is the only re-explanation for this panel. If a slide from the course material would help make this concrete, this is the moment to bring it up.",
+      "next": "retest"
+    },
+    {
+      "suffix": "retest",
+      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never 'explain it back'. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 2. There is no third attempt regardless of the result.",
+      "conditional": {
+        "gentle_correct": "understanding is still shaky or confused after the re-explanation",
+        "confirm": "understanding is solid"
+      }
+    },
+    {
+      "suffix": "gentle_correct",
+      "objective_prompt": "The student is still confused after one re-explanation and there is no third attempt. Gently tell them the correct understanding of panel {N} in a sentence or two — no dwelling on the miss, warm and direct. A relevant slide here can make the correct explanation concrete instead of just spoken. Then write the panel yourself in clear, correct language and call log_zine_page with panel_number {N}, source \"prefill\" — this is your explanation, not the student's, so it must never be logged as source \"student\". Then move on.",
+      "next": "ADVANCE"
+    },
+    {
+      "suffix": "confirm",
+      "objective_prompt": "Agree on a light-polish version of the student's own words for panel {N} — recognisably theirs, not your paraphrase — and call log_zine_page with panel_number {N} and source \"student\". Then move on.",
+      "next": "ADVANCE"
+    }
+  ],
+  "terminal": {
+    "objective_name": "wrap_up",
+    "objective_prompt": "The zine is complete. Give a short recap naming what the student proved and where they fought hardest, for example 'base cases — first try; recursion took two rounds, that's the normal hard part'. Then let them know they can export their zine.",
+    "confirmation_mode": "auto"
+  }
+}

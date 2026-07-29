@@ -1,0 +1,90 @@
+{
+  "tools": [
+    {
+      "name": "log_zine_page",
+      "description": "Save one panel of the student's 8-panel zine. The panel appears on their page the instant this is called, so call it only once you and the student have agreed on the final wording for that panel - never on a draft, never mid-discussion. One call per panel. Set source to 'student' for panels the student authored (a light polish of their own words, still recognizably theirs) and 'prefill' for worked-example panels you write for them yourself during wrap-up. Calling it again with the same panel_number overwrites that panel rather than adding a new one.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "panel_number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "description": "Which panel of the 8-panel zine this is. The session context lists which panels are already filled; use the next unfilled one."
+          },
+          "text": {
+            "type": "string",
+            "description": "The panel's final wording, in the student's own voice where they authored it. Short - a zine panel, not a paragraph."
+          },
+          "visual_note": {
+            "type": "string",
+            "description": "Optional one-line description of the sketch or diagram that belongs on this panel, e.g. 'stack of three boxes collapsing into one'."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["prefill", "student"],
+            "description": "'student' if the student authored this panel, 'prefill' if you wrote it as a worked example. Only 'student' panels count toward the class's understanding stats, so never mark your own writing as 'student'."
+          }
+        },
+        "required": ["panel_number", "text", "source"]
+      },
+      "origin": "llm",
+      "on_call": "silent",
+      "on_resolve": "generate_response",
+      "delivery": { "app_message": true }
+    },
+    {
+      "name": "log_understanding_check",
+      "description": "Silently record how well the student understood a panel. Call this immediately after you judge their answer to a transfer question, before you decide whether to re-explain or confirm the panel - once per attempt. Use attempt 1 for their first answer and attempt 2 for their answer after you re-explained from a different angle. This is a private record for the instructor's class view: never read it out, never tell the student you are grading them, and never let calling it interrupt the conversation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "panel_number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "description": "The panel whose understanding you just tested."
+          },
+          "level": {
+            "type": "string",
+            "enum": ["confused", "shaky", "solid"],
+            "description": "'solid' if they correctly applied their concept to the new problem, 'shaky' if they applied it partly or hedged, 'confused' if the transfer did not land at all."
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2,
+            "description": "1 for their first answer on this panel, 2 for their answer after the single re-explanation. There is never a third attempt."
+          }
+        },
+        "required": ["panel_number", "level", "attempt"]
+      },
+      "origin": "llm",
+      "on_call": "silent",
+      "on_resolve": "fire_and_forget",
+      "delivery": { "app_message": true }
+    },
+    {
+      "name": "post_call_summary",
+      "description": "Recap the session for the instructor's ledger: 2-3 sentences naming the concept, what the student proved, and where they fought hardest. Not spoken to the student and not called by you directly — Tavus runs this automatically once the call ends, filling it from the transcript.",
+      "trigger_type": "post_call",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "2-3 sentence recap of what the student covered, where they struggled, and what they should review before next session."
+          }
+        },
+        "required": ["summary"]
+      },
+      "delivery": {
+        "api": {
+          "url": "__WEBHOOK_URL__",
+          "method": "POST",
+          "body_template": { "summary": "{summary}" }
+        }
+      }
+    }
+  ]
+}

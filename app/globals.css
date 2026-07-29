@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   Professor Riso — riso print-shop design system.
+
+   Core inversion: the app chrome is INK; paper appears only inside zine
+   panels. The user is standing in the print shop, the artifact is the sheet.
+   Do not introduce paper-colored full-bleed backgrounds.
+   =========================================================================== */
+
+@theme {
+  /* Riso ink set. Blue is the field, pink is spent sparingly, yellow stamps. */
+  --color-ink: #2b3a8c;
+  --color-ink-deep: #1a2160;
+  --color-ink-edge: #4356b8;
+  --color-pink: #ff48a0;
+  --color-yellow: #ffc91e;
+  --color-paper: #f2f1ec;
+  --color-paper-shade: #e2e0d6;
+  --color-graphite: #33352e;
+  --color-graphite-soft: #6b6d63;
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-courier), ui-monospace, monospace;
+
+  /* Type scale: display is poster-loud, body is quiet, mono is a label. */
+  --text-poster: 4.5rem;
+  --text-poster--line-height: 0.9;
+  --text-poster--letter-spacing: -0.03em;
+  --text-marquee: 2.5rem;
+  --text-marquee--line-height: 0.95;
+  --text-marquee--letter-spacing: -0.02em;
+  --text-stamp: 0.6875rem;
+  --text-stamp--line-height: 1.2;
+  --text-stamp--letter-spacing: 0.14em;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-body);
+}
+
+/* --- Paper ---------------------------------------------------------------
+   Any surface that represents physical stock. Never the page background.
+   ------------------------------------------------------------------------ */
+.paper {
+  background: var(--color-paper);
+  color: var(--color-graphite);
+  /* Print bite, not a soft UI drop shadow. */
+  box-shadow: 2px 2px 0 var(--color-ink-deep);
+}
+
+/* --- Bands ----------------------------------------------------------------
+   Landing-page sections alternate ink/ink-deep for scroll rhythm. Each band
+   carries its own halftone dot texture (moved off `body`, which a solid
+   section background would otherwise hide) — dot color inverts per band so
+   the tooth stays visible against either field color. Dot radius bumped
+   from an earlier 0.5px to 1.1px: at 0.5px the texture was imperceptible at
+   normal zoom, reading as flat color instead of printed stock.
+   ------------------------------------------------------------------------ */
+.band-ink {
+  background-color: var(--color-ink);
+  background-image: radial-gradient(var(--color-ink-deep) 1.1px, transparent 1.1px);
+  background-size: 4px 4px;
+}
+.band-ink-deep {
+  background-color: var(--color-ink-deep);
+  background-image: radial-gradient(var(--color-ink) 1.1px, transparent 1.1px);
+  background-size: 4px 4px;
+}
+
+/* --- Misregistration, hover-triggered --------------------------------------
+   Same offset-ghost technique as .misreg above, but gated behind :hover and
+   :focus-visible instead of always-on — for interactive elements (links),
+   so the plate visibly "shifts" on interaction rather than sitting
+   permanently highlighted.
+   ------------------------------------------------------------------------ */
+.misreg-hover {
+  position: relative;
+}
+.misreg-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  translate: -2px 2px;
+  background: var(--color-pink);
+  mix-blend-mode: multiply;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity 150ms ease-out;
+}
+.misreg-hover:hover::before,
+.misreg-hover:focus-visible::before {
+  opacity: 0.28;
+}
+
+/* --- Misregistration -----------------------------------------------------
+   Riso plates never align perfectly. One offset ink impression behind the
+   element sells the print without touching legibility.
+   ------------------------------------------------------------------------ */
+.misreg {
+  position: relative;
+}
+.misreg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  translate: -2px 2px;
+  background: var(--color-pink);
+  mix-blend-mode: multiply;
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* --- Stamp ---------------------------------------------------------------
+   Mastery marks. Hand-pressed, so each one tilts. The rotation is set per
+   instance via --tilt so no two land identically.
+   ------------------------------------------------------------------------ */
+.stamp {
+  font-family: var(--font-mono);
+  font-size: var(--text-stamp);
+  letter-spacing: var(--text-stamp--letter-spacing);
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid currentColor;
+  rotate: var(--tilt, -3deg);
+  /* Ink soaks unevenly into stock. */
+  opacity: 0.88;
+}
+.stamp-first {
+  color: #b8860b;
+  border-color: #b8860b;
+}
+.stamp-retry {
+  color: var(--color-graphite-soft);
+  border-color: var(--color-graphite-soft);
+}
+
+/* --- Fold sheet ----------------------------------------------------------
+   The signature element: a real 8-panel single-sheet fold. Fold lines are
+   dashed, the single cut line is solid — the way a zine template is printed.
+   ------------------------------------------------------------------------ */
+.fold-sheet {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--color-paper-shade);
+  aspect-ratio: 4 / 2.6;
+}
+
+.fold-line-v {
+  border-left: 1px dashed var(--color-graphite-soft);
+}
+.fold-line-cut {
+  border-left: 1.5px solid var(--color-graphite);
+}
+
+/* Line swatches reused from the fold-sheet legend, but horizontal, for the
+   assembly steps below the sheet. */
+.swatch-line {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0;
+  border-top-width: 1.5px;
+}
+.swatch-fold {
+  border-top-style: dashed;
+  border-top-color: var(--color-graphite-soft);
+}
+.swatch-cut {
+  border-top-style: solid;
+  border-top-color: var(--color-graphite);
+}
+
+/* --- Focus ---------------------------------------------------------------- */
+:focus-visible {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .stamp {
+    rotate: 0deg;
+  }
+}

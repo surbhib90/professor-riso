@@ -1,0 +1,95 @@
+"use client";
+
+/**
+ * The scratch sheet: the student's own stock. Excalidraw is client-only, so it
+ * is dynamically imported with ssr:false. This pane owns the scene API and
+ * hands raw elements up — summarizing is the bridge's job, not the view's.
+ */
+
+import dynamic from "next/dynamic";
+import { useRef } from "react";
+import type { SceneElement } from "@/lib/excalidraw-summarize";
+import "@excalidraw/excalidraw/index.css";
+
+const Excalidraw = dynamic(
+  async () => (await import("@excalidraw/excalidraw")).Excalidraw,
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center font-mono text-stamp uppercase text-graphite-soft">
+        Loading the scratch sheet
+      </div>
+    ),
+  },
+);
+
+interface SceneApi {
+  getSceneElements(): readonly SceneElement[];
+}
+
+interface ScratchPaneProps {
+  onSubmit(elements: readonly SceneElement[]): void;
+  /** A submission is in flight; a second click would send a duplicate turn. */
+  busy: boolean;
+  /** Live explanation of why a send would not go through, or the last result. */
+  notice: string | null;
+  /** Panel the professor is waiting on, for the pane's own heading. */
+  panelHint: number | null;
+}
+
+export default function ScratchPane({
+  onSubmit,
+  busy,
+  notice,
+  panelHint,
+}: ScratchPaneProps) {
+  const apiRef = useRef<SceneApi | null>(null);
+
+  return (
+    <section aria-labelledby="scratch-heading" className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="scratch-heading" className="font-display text-2xl tracking-tight">
+          Scratch sheet
+        </h2>
+        <p className="font-mono text-stamp uppercase text-paper/70">
+          {panelHint === null ? "sheet full" : `working on panel ${panelHint}`}
+        </p>
+      </div>
+
+      <div className="paper h-[46vh] min-h-[280px] p-2 lg:h-[52vh]">
+        <div className="h-full w-full overflow-hidden">
+          <Excalidraw
+            excalidrawAPI={(api) => {
+              apiRef.current = api;
+            }}
+            initialData={{ appState: { viewBackgroundColor: "#f2f1ec" } }}
+            UIOptions={{
+              canvasActions: {
+                changeViewBackgroundColor: false,
+                export: false,
+                loadScene: false,
+                saveToActiveFile: false,
+                toggleTheme: false,
+                saveAsImage: false,
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onSubmit(apiRef.current?.getSceneElements() ?? [])}
+          className="w-full bg-yellow px-4 py-2.5 font-mono text-stamp uppercase text-ink-deep shadow-[2px_2px_0_var(--color-ink-deep)] transition-colors hover:bg-pink hover:text-paper disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2"
+        >
+          {busy ? "Sending notes" : "Send notes to Professor Riso"}
+        </button>
+        <p aria-live="polite" className="min-w-0 text-sm text-paper/80 sm:flex-1">
+          {notice}
+        </p>
+      </div>
+    </section>
+  );
+}

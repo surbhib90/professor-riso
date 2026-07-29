@@ -1,0 +1,33 @@
+name: CI
+
+# Runs the same checks a contributor should run locally before pushing:
+# typecheck, unit tests, lint. All three are green as of the commit that
+# added this workflow (/plan-ceo-review, 2026-07-28) — no known-failing
+# baseline to work around.
+#
+# Deliberately NOT included: the Playwright e2e suite and a Next.js build.
+# Both need real env vars (Supabase URL/anon key, Tavus keys) to boot the
+# app, which means either committing placeholder secrets or wiring GitHub
+# Actions secrets — a real decision for whoever adopts this repo as their
+# reference architecture, not something to default silently in CI. Add a
+# second job for those once that decision is made.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx eslint .

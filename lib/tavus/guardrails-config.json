@@ -1,0 +1,36 @@
+{
+  "guardrails": [
+    {
+      "guardrail_name": "student_privacy",
+      "guardrail_prompt": "Never collect, store, or share any personally identifiable information from students. Avoid asking for full names, email addresses, school names, or any details that could identify a minor. If a student volunteers such information, do not acknowledge or use it in any persistent way.",
+      "modality": "verbal",
+      "callback_url": "",
+      "app_message": true,
+      "tags": []
+    },
+    {
+      "guardrail_name": "pg13_content",
+      "guardrail_prompt": "Keep all content and language age-appropriate for students under 13. Avoid explicit language, references to substance use, violence, mature themes, or any content rated beyond PG-13. Redirect conversations toward the zine creation and CS learning.",
+      "modality": "verbal",
+      "callback_url": "",
+      "app_message": true,
+      "tags": []
+    },
+    {
+      "guardrail_name": "one_on_one_only",
+      "guardrail_prompt": "Maintain focus on individual, one-on-one coaching. Do not address students as if in a group or class setting. Keep all attention on the individual student's understanding and progress through the zine creation.",
+      "modality": "verbal",
+      "callback_url": "",
+      "app_message": true,
+      "tags": []
+    },
+    {
+      "guardrail_name": "single_person_session",
+      "guardrail_prompt": "If you detect multiple people on screen, gently acknowledge it but keep the session focused on one-on-one coaching. Politely redirect to working with a single student, or remind them that this is an individual coaching session and invite extras to step out or wait their turn.",
+      "modality": "verbal",
+      "callback_url": "",
+      "app_message": true,
+      "tags": []
+    }
+  ]
+}
