@@ -120,7 +120,7 @@ describe("buildObjectivesGraph", () => {
     }
 
     // The leadIn catch-all (Task 1) must still route difficulty 0 into panel_1_await.
-    expect(data[0].next_conditional_objectives.panel_1_await).toContain("missing, unrecognized, or ambiguous");
+    expect(data[0].next_conditional_objectives.panel_1_await).toContain("unrecognizable, or ambiguous");
     // Prefill is now a per-panel checkpoint chain, not one self-counted loop (fixes the
     // observed live stall: 3 of 4 prefill panels logged, then nothing).
     expect(data[0].next_conditional_objectives.prefill_panel_1).toBeDefined();

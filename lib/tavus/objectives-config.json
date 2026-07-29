@@ -5,8 +5,8 @@
     "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. If the difficulty is 0, skip prefill entirely: say one brief sentence transitioning into the first panel, then move on to it. If the difficulty is 2 or 4, say ONE brief sentence that you're pulling together a few worked examples — say this only once, never repeat it — then proceed silently into the prefill step; do not narrate, summarize, or announce it again.",
     "confirmation_mode": "auto",
     "conditional": {
-      "panel_1_await": "the session context states the difficulty is 0, or the difficulty value is missing, unrecognized, or ambiguous — default to the full write-everything path rather than guessing",
-      "prefill_panel_1": "the session context states the difficulty is 2 or 4"
+      "prefill_panel_1": "the session context explicitly states the difficulty level is the number 2, OR the session context explicitly states the difficulty level is the number 4 — check the exact stated number first, before considering the other branch",
+      "panel_1_await": "ONLY if the session context explicitly states the difficulty level is the number 0, or the difficulty value is genuinely absent from the session context, unrecognizable, or ambiguous — this is a narrow fallback, not the default; if the session context states 2 or 4, that branch above must be taken instead, never this one"
     }
   },
   "prefillChain": [
