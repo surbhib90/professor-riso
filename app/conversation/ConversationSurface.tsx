@@ -565,6 +565,23 @@ function ConversationInner({
     [conversationId, status, speaking, inFlight],
   );
 
+  // ScratchPane is memo()'d specifically to survive the once-a-second wrap-up
+  // clock re-render (Excalidraw is too heavy to re-render that often over a
+  // 15-minute session — observed live as the canvas hanging/going sluggish).
+  // That protection only holds if every prop ScratchPane receives is
+  // referentially stable across a tick; an inline `<UploadPane .../>` element
+  // built directly in JSX is a NEW object every render regardless of memo on
+  // UploadPane itself, which silently defeated it. Memoizing the element (not
+  // just the callback) keeps the same reference across renders.
+  const handleUpload = useCallback(
+    (file: File) => uploadKnowledgeFile(file, classId, concept),
+    [classId, concept],
+  );
+  const uploadPane = useMemo(
+    () => <UploadPane concept={concept} onUpload={handleUpload} />,
+    [concept, handleUpload],
+  );
+
   // --- magic canvas ---------------------------------------------------------
 
   const handleCanvasInteraction = useCallback(
@@ -720,10 +737,7 @@ function ConversationInner({
               notice={notice}
               panelHint={nextPanel}
             >
-              <UploadPane
-                concept={concept}
-                onUpload={(file) => uploadKnowledgeFile(file, classId, concept)}
-              />
+              {uploadPane}
             </ScratchPane>
           </div>
         </div>
