@@ -168,7 +168,7 @@ const main = async () => {
   // already has.
   //
   // on_call is "silent" for both. The default, "generate_filler", makes the PAL
-  // speak while the tool runs; inside a 10-minute budget that is dead air, and
+  // speak while the tool runs; inside a 15-minute budget that is dead air, and
   // for log_understanding_check it would leak the assessment to the student,
   // which the anti-exam framing (D15) forbids.
   //
@@ -273,6 +273,7 @@ const main = async () => {
   }
 
   const patchOps = [
+    { op: "replace", path: "/pal_name", value: palConfig.pal_name },
     { op: "replace", path: "/system_prompt", value: palConfig.system_prompt },
     { op: "replace", path: "/greeting", value: palConfig.greeting },
     { op: "replace", path: "/objectives_id", value: objectivesId },
@@ -323,13 +324,16 @@ const main = async () => {
         .replace('"__SAME_AS_document_ids__"', JSON.stringify(documentIds))
         .replace('"__SAME_AS_TOPIC_DOCUMENT_IDS__"', JSON.stringify(TOPIC_DOCUMENT_IDS))
     );
+    // PUT, not PATCH: PUT both attaches a not-yet-attached skill and updates
+    // an existing one (docs.tavus.io/api-reference/pal-skills/attach-skill-to-pal);
+    // PATCH 404s on a skill that was ever detached (e.g. via the dashboard).
     const skillPatchRes = await fetch(`${BASE}/pals/${palId}/skills/${skillId}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: { "x-api-key": API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ config: resolvedConfig }),
     });
     if (!skillPatchRes.ok && skillPatchRes.status !== 304) {
-      console.error(`\nPATCH /pals/${palId}/skills/${skillId} -> HTTP ${skillPatchRes.status}`);
+      console.error(`\nPUT /pals/${palId}/skills/${skillId} -> HTTP ${skillPatchRes.status}`);
       console.error(await skillPatchRes.text());
       fail(
         `patching skill ${skillId} failed`,

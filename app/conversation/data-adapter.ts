@@ -193,7 +193,7 @@ export async function endConversation(
  */
 const RESUME_KEY = "professor-riso:conversation";
 /** Matches max_call_duration; a staler entry points at a dead room. */
-const RESUME_TTL_MS = 10 * 60 * 1000;
+const RESUME_TTL_MS = 15 * 60 * 1000;
 
 interface ResumeRecord extends StartedConversation {
   signature: string;

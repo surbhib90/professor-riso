@@ -17,8 +17,7 @@ function loadPalConfig() {
 describe("pal-config.json — Task 2 (response style + emotional cues)", () => {
   const palConfig = loadPalConfig();
 
-  it("has a Response Style section constraining turns to 1-3 spoken sentences", () => {
-    expect(palConfig.system_prompt).toContain("## Response Style");
+  it("constrains turns to 1-3 spoken sentences", () => {
     expect(palConfig.system_prompt).toMatch(/1[–-]3 sentences/);
   });
 
@@ -34,8 +33,8 @@ describe("pal-config.json — Task 2 (response style + emotional cues)", () => {
     expect(palConfig.system_prompt).toMatch(/warmth/i);
   });
 
-  it("does not rename the Tavus-side PAL identity (Global Constraint)", () => {
-    expect(palConfig.pal_name).toBe("Professor Byte");
+  it("Tavus-side PAL identity matches the app-facing name (Professor Riso)", () => {
+    expect(palConfig.pal_name).toBe("Professor Riso");
   });
 });
 

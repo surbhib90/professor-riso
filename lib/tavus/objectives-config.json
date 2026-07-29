@@ -1,35 +1,56 @@
 {
-  "_comment": "Synced from live Tavus objectives graph (manually edited in the Tavus dashboard on 2026-07-29) — flat 3-node graph: generate_prefill_examples -> complete_zine_panels -> wrap_up_session. This REPLACES the old 8-panel-template/50-node structure. scripts/lib/tavus-provisioning.mjs's buildObjectivesGraph() still expands the old template shape and does NOT match this file anymore — do not run setup-tavus.mjs against this file until that script is updated, or it will regenerate the old 50-node graph and overwrite this one live.",
-  "data": [
-    {
-      "objective_name": "generate_prefill_examples",
-      "objective_prompt": "If the difficulty is greater than 0, say one brief sentence that you're pulling together a few worked examples, then silently invoke the log_zine_page tool once per panel (source \"prefill\"), panel_number 1 through the difficulty count, back to back with no spoken explanation in between. If the difficulty is 0, skip this step and say so in one brief sentence before moving on. This setup must finish quickly to preserve session time.",
-      "confirmation_mode": "auto",
-      "output_variables": [],
-      "modality": "verbal",
-      "next_conditional_objectives": {},
-      "next_required_objective": "complete_zine_panels",
-      "callback_url": ""
-    },
-    {
-      "objective_name": "complete_zine_panels",
-      "objective_prompt": "Guide the student through the creation of all 8 panels of the zine study guide. For each panel, follow a strict sequence: 1. Await the student's initial write-up or sketch on the canvas. 2. Test their understanding using a transfer question (a small new problem) rather than asking for a re-explanation. 3. Once understanding is verified as solid, agree on a light-polish version of the student's words and log the page. This objective is complete once all 8 panels have been finalized and logged.",
-      "confirmation_mode": "auto",
-      "output_variables": [],
-      "modality": "verbal",
-      "next_conditional_objectives": {},
-      "next_required_objective": "wrap_up_session",
-      "callback_url": ""
-    },
-    {
-      "objective_name": "wrap_up_session",
-      "objective_prompt": "The zine is complete. Give a short recap naming what the student proved and where they fought hardest (e.g., which concepts took multiple attempts), then let them know they can export their zine.",
-      "confirmation_mode": "auto",
-      "output_variables": [],
-      "modality": "verbal",
-      "next_conditional_objectives": {},
-      "next_required_objective": "",
-      "callback_url": ""
+  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + 1 terminal = 34 nodes) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel. Rewritten 2026-07-29 per docs.tavus.io/sections/onboarding-guide/objectives (one objective per distinct outcome, name tool calls explicitly, keep the PAL system prompt from conflicting with the objectives) to fix panels not reliably logging: every step now explicitly names log_zine_page / log_understanding_check / canvas_clear, and the test/retest/reexplain steps explicitly choose a canvas.question Magic Canvas card for discrete-option questions vs. an explicit spoken instruction to answer on Excalidraw and click Send for open-ended ones.",
+  "leadIn": {
+    "objective_name": "generate_prefill_examples",
+    "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. Say the sentence in this paragraph only ONCE, never repeat it even if nothing seems to happen afterward. If the difficulty is greater than 0: say ONE brief sentence that you're pulling together a few worked examples, then silently call the log_zine_page tool once per panel (source \"prefill\"), panel_number 1 through the difficulty count, back to back with no spoken explanation in between — never speak or write the words \"log_zine_page\", its arguments, or any JSON, and never narrate or summarize any panel's content aloud; the student should hear only that one opening sentence, then nothing else until this step is done. This whole step is setup, not teaching, and must finish within the first minute of the session — time here counts against the 15-minute session. Each example must still be distinct, real, and grounded in the attached material, never a placeholder or a repeat of another panel, even though it is never spoken. If the difficulty is 0, skip this step and say so in one brief sentence before moving on to the first panel.",
+    "confirmation_mode": "auto",
+    "conditional": {
+      "panel_1_await": "the session context states the difficulty is 0, or the difficulty value is missing, unrecognized, or ambiguous — default to the full write-everything path rather than guessing",
+      "panel_3_await": "the session context states the difficulty is 2",
+      "panel_5_await": "the session context states the difficulty is 4"
     }
-  ]
+  },
+  "panelChain": [
+    {
+      "suffix": "await",
+      "objective_prompt": "Invite the student to write or sketch their own understanding of panel {N} on the Excalidraw canvas. Wait for their notes — they arrive as spoken text. Once received, move to testing.",
+      "next": "test"
+    },
+    {
+      "suffix": "test",
+      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to \"explain it back\". If the question has discrete answer options, render it as a canvas.question Magic Canvas card. If it is open-ended, ask it aloud AND explicitly tell the student to write or sketch their answer on the Excalidraw canvas, then click \"Send notes to Professor Riso\" so you receive it — never wait silently for an Excalidraw answer without saying this out loud. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 1.",
+      "conditional": {
+        "reexplain": "understanding is shaky or confused",
+        "confirm": "understanding is solid"
+      }
+    },
+    {
+      "suffix": "reexplain",
+      "objective_prompt": "Re-explain panel {N} more simply, from a different angle. Ask the student to answer once more — either revise their notes or answer a new small problem — using the same rule as before: a canvas.question Magic Canvas card for a question with discrete options, or the Excalidraw canvas plus an explicit spoken instruction to click \"Send notes to Professor Riso\" for an open-ended one. This is the only re-explanation for this panel. If a slide from the course material would help make this concrete, this is the moment to bring it up.",
+      "next": "retest"
+    },
+    {
+      "suffix": "retest",
+      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never \"explain it back\", still following the canvas.question-card-or-Excalidraw-and-Send rule. Judge the response solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 2. There is no third attempt regardless of the result.",
+      "conditional": {
+        "gentle_correct": "understanding is still shaky or confused after the re-explanation",
+        "confirm": "understanding is solid"
+      }
+    },
+    {
+      "suffix": "gentle_correct",
+      "objective_prompt": "The student is still confused after one re-explanation and there is no third attempt. Gently tell them the correct understanding of panel {N} in a sentence or two — no dwelling on the miss, warm and direct. A relevant slide here can make the correct explanation concrete instead of just spoken. Then write the panel yourself in clear, correct language and call log_zine_page with panel_number {N}, source \"prefill\" — this is your explanation, not the student's, so it must never be logged as source \"student\". If a canvas.question card is currently shown for this panel, immediately call canvas_clear so it disappears. Then move on.",
+      "next": "ADVANCE"
+    },
+    {
+      "suffix": "confirm",
+      "objective_prompt": "Agree on a light-polish version of the student's own words for panel {N} — recognisably theirs, not your paraphrase — and call log_zine_page with panel_number {N} and source \"student\". If a canvas.question card is currently shown for this panel, immediately call canvas_clear so it disappears. Then move on.",
+      "next": "ADVANCE"
+    }
+  ],
+  "terminal": {
+    "objective_name": "wrap_up",
+    "objective_prompt": "The zine is complete. Give a short recap naming what the student proved and where they fought hardest, for example 'base cases — first try; recursion took two rounds, that's the normal hard part'. Then let them know they can export their zine.",
+    "confirmation_mode": "auto"
+  }
 }

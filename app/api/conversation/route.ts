@@ -28,9 +28,9 @@ import { buildTavusWebhookUrl } from "@/lib/tavus/webhook-url";
 // response body and never appears in an error message sent to the browser.
 const TAVUS_BASE_URL = "https://tavusapi.com/v2";
 
-/** D10: hard 10-minute budget. Tavus kills the call at this mark with no warning
+/** D10: hard 15-minute budget. Tavus kills the call at this mark with no warning
  *  to the agent, which is why the client injects a wrap-up turn at T-2:00. */
-const MAX_CALL_DURATION_SECONDS = 600;
+const MAX_CALL_DURATION_SECONDS = 900;
 
 /** How long a conversation nobody ever joined stays open. Tavus defaults this
  *  to 300s, which is far too long when the account's concurrency cap is small:
@@ -165,7 +165,7 @@ function buildConversationalContext(input: CreateConversationInput): string {
   }
 
   lines.push(
-    `Hard limit: this call ends at 10 minutes. You will be told when two minutes remain; at that point fill any panels the student has not reached yourself, with source "prefill", then give the closing recap.`
+    `Hard limit: this call ends at 15 minutes. You will be told when two minutes remain; at that point fill any panels the student has not reached yourself, with source "prefill", then give the closing recap.`
   );
 
   return lines.join("\n");

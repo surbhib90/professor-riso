@@ -72,7 +72,7 @@ const CANVAS_RENDER_COMPONENTS: CanvasRenderRegistry = {
 };
 
 /** Matches the conversation's `max_call_duration` (D10). */
-const MAX_CALL_SECONDS = 600;
+const MAX_CALL_SECONDS = 900;
 const WRAP_UP_AT_SECONDS = MAX_CALL_SECONDS - 120;
 /** A missed stopped_speaking must not lock the submit button for the session. */
 const SPEAKING_WATCHDOG_MS = 25_000;

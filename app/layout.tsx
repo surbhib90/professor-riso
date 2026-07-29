@@ -22,7 +22,7 @@ const courier = Courier_Prime({
 
 const SITE_NAME = "Professor Riso";
 const DESCRIPTION =
-  "AI video tutor for computer science. Explain a concept in your own words, get tested with a problem you haven't seen, and leave with a hand-drawn zine study guide — built in a ten-minute session.";
+  "AI video tutor for computer science. Explain a concept in your own words, get tested with a problem you haven't seen, and leave with a hand-drawn zine study guide — built in a fifteen-minute session.";
 const KEYWORDS = [
   "AI tutor",
   "AI video tutor",

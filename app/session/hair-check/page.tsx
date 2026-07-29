@@ -4,7 +4,7 @@
  * Pre-call device check screen (Task 8 — hair-check).
  *
  * Per the Tavus latency-optimization guide, letting the student configure
- * camera and mic here — before the PAL call is created — means the 10-minute
+ * camera and mic here — before the PAL call is created — means the 15-minute
  * clock doesn't start ticking during an awkward "connecting..." wait.
  *
  * HairCheck uses useDaily() internally, so it must be wrapped in DailyProvider.
@@ -39,7 +39,7 @@ function HairCheckScreen() {
                     Check your camera and mic
                 </h1>
                 <p className="text-paper/80">
-                    Make sure your devices are ready before the session starts. The ten-minute
+                    Make sure your devices are ready before the session starts. The fifteen-minute
                     clock only begins once you join.
                 </p>
                 <HairCheck onJoin={proceed} />

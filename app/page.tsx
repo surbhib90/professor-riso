@@ -104,7 +104,7 @@ const STEPS: readonly Step[] = [
   {
     number: "03",
     heading: "The panel gets printed",
-    body: "Once it holds, your own words go on the sheet — proof you actually learned it. Still shaky after the retry? No shame — the professor fills it in, clearly marked as theirs, so you always know what's truly yours. Eight panels, ten minutes, then export.",
+    body: "Once it holds, your own words go on the sheet — proof you actually learned it. Still shaky after the retry? No shame — the professor fills it in, clearly marked as theirs, so you always know what's truly yours. Eight panels, fifteen minutes, then export.",
   },
 ];
 
@@ -228,7 +228,7 @@ export default function Home() {
                   href={START_HREF}
                   className="self-start bg-pink px-7 py-4 font-mono text-stamp uppercase text-ink-deep shadow-[3px_3px_0_var(--color-ink-deep)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  Start a ten-minute session
+                  Start a fifteen-minute session
                 </Link>
                 <p className="font-mono text-stamp uppercase text-paper/60">
                   No sign-up — you get a guest pass when the session opens
@@ -313,7 +313,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- How the ten minutes goes --------------------------------------- */}
+      {/* --- How the fifteen minutes goes --------------------------------------- */}
       <section className="band-ink-deep border-t border-ink-edge">
         <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
           <section aria-labelledby="how-heading" className="flex flex-col gap-8">
@@ -419,7 +419,7 @@ export default function Home() {
               href={START_HREF}
               className="self-start bg-pink px-7 py-4 font-mono text-stamp uppercase text-ink-deep shadow-[3px_3px_0_var(--color-ink-deep)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              Start a ten-minute session
+              Start a fifteen-minute session
             </Link>
           </footer>
         </div>

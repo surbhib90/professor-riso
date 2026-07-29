@@ -37,7 +37,7 @@ const CHOICES: readonly Choice[] = [
   {
     difficulty: 4,
     label: "You write 4",
-    detail: "Half the sheet arrives filled in. This is the one that fits ten minutes.",
+    detail: "Half the sheet arrives filled in. This is the one that fits fifteen minutes.",
   },
 ];
 
@@ -183,7 +183,7 @@ export default function SessionStart({
       <p className="max-w-prose text-lg leading-relaxed text-paper/85">
         Eight panels on one folded sheet. You sketch what you think each panel
         means, the professor tests it with a new problem, and the panel gets
-        printed once you&apos;ve got it. Ten minutes, then you export the sheet.
+        printed once you&apos;ve got it. Fifteen minutes, then you export the sheet.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">

@@ -15,5 +15,5 @@ export type Difficulty = 0 | 2 | 4;
 
 export const DIFFICULTY_OPTIONS: readonly Difficulty[] = [0, 2, 4];
 
-/** D10: 10 minutes cannot fit 8 student-authored panels. Half is the demo. */
+/** D10: 15 minutes cannot comfortably fit 8 student-authored panels. Half is the demo. */
 export const DEFAULT_DIFFICULTY: Difficulty = 4;
