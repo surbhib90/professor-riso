@@ -8,11 +8,12 @@
 
 import {
   getStudentId,
+  insertToolCallEvent,
   insertUnderstandingEvent,
   loadPanelsForSession,
   upsertPanelRow,
 } from "@/lib/supabase/client";
-import type { Panel, SessionContext, UnderstandingCheck } from "@/lib/types";
+import type { Panel, SessionContext, ToolCallEvent, UnderstandingCheck } from "@/lib/types";
 
 export async function resolveStudentId(): Promise<string> {
   try {
@@ -42,6 +43,12 @@ export function savePanel(ctx: SessionContext, panel: Panel): void {
 export function saveCheck(ctx: SessionContext, check: UnderstandingCheck): void {
   void Promise.resolve(insertUnderstandingEvent(ctx, check)).catch((err: unknown) => {
     console.error("[data] understanding event write failed", err);
+  });
+}
+
+export function logToolCall(ctx: SessionContext, event: ToolCallEvent): void {
+  void Promise.resolve(insertToolCallEvent(ctx, event)).catch((err: unknown) => {
+    console.error("[data] tool call log write failed", err);
   });
 }
 

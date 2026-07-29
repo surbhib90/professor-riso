@@ -1,6 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Panel, SessionContext, UnderstandingCheck } from "@/lib/types";
+import type { Panel, SessionContext, ToolCallEvent, UnderstandingCheck } from "@/lib/types";
 import { isValidPanelNumber } from "@/lib/types";
 
 /**
@@ -160,5 +160,32 @@ export async function insertUnderstandingEvent(
     throw new Error(
       `Could not record the check for panel ${check.panelNumber}: ${error.message}`,
     );
+  }
+}
+
+/**
+ * Raw audit log of every conversation.tool_call, success or rejected — the
+ * observability trail docs.tavus.io/sections/onboarding-guide/tool-calling-examples
+ * recommends (conversation id, tool call id, tool name, parameters, status,
+ * timestamp), separate from Panel/UnderstandingCheck which only ever hold
+ * validated, applied writes.
+ */
+export async function insertToolCallEvent(
+  ctx: SessionContext,
+  event: ToolCallEvent,
+): Promise<void> {
+  const { error } = await createClient().from("tool_call_events").insert({
+    conversation_id: ctx.conversationId,
+    class_id: ctx.classId,
+    student_id: ctx.studentId,
+    tool_name: event.toolName,
+    tool_call_id: event.toolCallId,
+    arguments: event.args,
+    status: event.status,
+    reason: event.reason ?? null,
+  });
+
+  if (error) {
+    throw new Error(`Could not log tool call ${event.toolName}: ${error.message}`);
   }
 }

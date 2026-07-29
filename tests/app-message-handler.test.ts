@@ -12,7 +12,7 @@ import {
   nextUnfinishedPanel,
   type ZineStore,
 } from "@/lib/zine";
-import type { Panel, UnderstandingCheck } from "@/lib/types";
+import type { Panel, ToolCallEvent, UnderstandingCheck } from "@/lib/types";
 
 const CONVERSATION_ID = "c1a2b3c4d5";
 
@@ -35,6 +35,7 @@ interface Harness {
   readonly persistedChecks: UnderstandingCheck[];
   readonly speaking: boolean[];
   readonly utterances: Array<{ role: string; speech: string }>;
+  readonly toolCallLog: ToolCallEvent[];
 }
 
 /**
@@ -51,6 +52,7 @@ function harness(): Harness {
   const persistedChecks: UnderstandingCheck[] = [];
   const speaking: boolean[] = [];
   const utterances: Array<{ role: string; speech: string }> = [];
+  const toolCallLog: ToolCallEvent[] = [];
 
   const sender: MessageSender = {
     sendAppMessage(data: unknown) {
@@ -82,6 +84,9 @@ function harness(): Harness {
     onUtterance(role, speech) {
       utterances.push({ role, speech });
     },
+    logToolCall(event) {
+      toolCallLog.push(event);
+    },
   };
 
   return {
@@ -94,6 +99,7 @@ function harness(): Harness {
     persistedChecks,
     speaking,
     utterances,
+    toolCallLog,
   };
 }
 
@@ -378,6 +384,43 @@ describe("handleAppMessage — log_zine_page", () => {
       expect(local.applied).toEqual([]);
       expect(wire(local.sent[0]).properties.status).toBe("error");
     }
+  });
+
+  it("logs a successful call with status ok, the raw args, and the tool_call_id", () => {
+    handleAppMessage(
+      toolCall(
+        "log_zine_page",
+        { panel_number: 3, text: "Base case stops the recursion.", source: "student" },
+        "toolu_logtest1",
+      ),
+      h.deps,
+    );
+
+    expect(h.toolCallLog).toEqual([
+      {
+        toolName: "log_zine_page",
+        toolCallId: "toolu_logtest1",
+        args: { panel_number: 3, text: "Base case stops the recursion.", source: "student" },
+        status: "ok",
+      },
+    ]);
+  });
+
+  it("logs a rejected call with status rejected and the reason, instead of silently dropping it", () => {
+    handleAppMessage(
+      toolCall("log_zine_page", { panel_number: 99, text: "x", source: "student" }, "toolu_logtest2"),
+      h.deps,
+    );
+
+    expect(h.toolCallLog).toEqual([
+      {
+        toolName: "log_zine_page",
+        toolCallId: "toolu_logtest2",
+        args: { panel_number: 99, text: "x", source: "student" },
+        status: "rejected",
+        reason: "panel_number must be an integer from 1 to 8",
+      },
+    ]);
   });
 
   it("rejects an unknown tool name", () => {

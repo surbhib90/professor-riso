@@ -20,6 +20,7 @@ import {
   isValidPanelNumber,
   type Panel,
   type PanelSource,
+  type ToolCallEvent,
   type UnderstandingCheck,
   type UnderstandingLevel,
 } from "./types";
@@ -50,6 +51,12 @@ export interface HandlerDeps {
   nextUnfinishedPanel(): number | null;
   setProfessorSpeaking(speaking: boolean): void;
   onUtterance?(role: string, speech: string): void;
+  /**
+   * Raw audit trail of every tool_call, success or rejected — per
+   * docs.tavus.io/sections/onboarding-guide/tool-calling-examples's
+   * observability guidance. Optional so existing test doubles don't need it.
+   */
+  logToolCall?(event: ToolCallEvent): void;
 }
 
 export type HandlerOutcome =
@@ -137,6 +144,7 @@ export function handleAppMessage(raw: unknown, deps: HandlerDeps): HandlerOutcom
 
   const reject = (reason: string): HandlerOutcome => {
     sendToolResult(deps.sender, deps.conversationId, toolCallId, reason, "error");
+    deps.logToolCall?.({ toolName, toolCallId, args, status: "rejected", reason });
     return { kind: "rejected", tool: toolName, reason };
   };
 
@@ -161,6 +169,7 @@ export function handleAppMessage(raw: unknown, deps: HandlerDeps): HandlerOutcom
 
     deps.applyPanel(panel);
     deps.persistPanel(panel);
+    deps.logToolCall?.({ toolName, toolCallId, args, status: "ok" });
     sendToolResult(deps.sender, deps.conversationId, toolCallId, `panel ${panelNumber} saved`);
 
     // Fallback path (unverified tool_result round trip): state the new truth as
@@ -183,6 +192,7 @@ export function handleAppMessage(raw: unknown, deps: HandlerDeps): HandlerOutcom
     const check: UnderstandingCheck = { panelNumber, level, attempt };
     deps.applyCheck(check);
     deps.persistCheck(check);
+    deps.logToolCall?.({ toolName, toolCallId, args, status: "ok" });
     sendToolResult(
       deps.sender,
       deps.conversationId,

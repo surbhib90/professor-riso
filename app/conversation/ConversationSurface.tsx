@@ -48,6 +48,7 @@ import {
   endConversation,
   fetchSessionPanels,
   forgetConversation,
+  logToolCall,
   readResumableConversation,
   rememberConversation,
   resolveStudentId,
@@ -260,6 +261,9 @@ function ConversationInner({
       },
       nextUnfinishedPanel: () => nextUnfinishedPanel(store.getState()),
       setProfessorSpeaking: markSpeaking,
+      logToolCall: (event) => {
+        if (ctxRef.current) logToolCall(ctxRef.current, event);
+      },
     };
   }, [store]);
 

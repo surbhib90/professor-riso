@@ -73,6 +73,32 @@ create index if not exists understanding_events_class_idx
   on public.understanding_events (class_id, panel_number);
 
 -- ---------------------------------------------------------------------------
+-- tool_call_events — raw audit log of every conversation.tool_call the PAL
+-- sends, success or rejected. Separate from panels/understanding_events
+-- (which only ever hold validated, applied writes) because a tool call that
+-- never arrives, or arrives malformed, leaves no trace in those tables — this
+-- is what answers "did the model even try to call log_zine_page" during
+-- debugging, per docs.tavus.io/sections/onboarding-guide/tool-calling-examples's
+-- observability guidance (log conversation id, tool call id, tool name,
+-- parameters, status, timestamp).
+-- ---------------------------------------------------------------------------
+create table if not exists public.tool_call_events (
+  id              uuid        primary key default gen_random_uuid(),
+  conversation_id text        not null,
+  class_id        text        not null,
+  student_id      uuid        not null references auth.users (id) on delete cascade,
+  tool_name       text        not null,
+  tool_call_id    text        not null,
+  arguments       jsonb       not null default '{}'::jsonb,
+  status          text        not null check (status in ('ok', 'rejected')),
+  reason          text,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists tool_call_events_conversation_idx
+  on public.tool_call_events (conversation_id, created_at);
+
+-- ---------------------------------------------------------------------------
 -- class_owners — the instructor gate.
 --
 -- One owner per class_id, enforced by the unique constraint below, not just
@@ -142,6 +168,7 @@ alter table public.panels               enable row level security;
 alter table public.understanding_events enable row level security;
 alter table public.class_owners         enable row level security;
 alter table public.prefill_panels       enable row level security;
+alter table public.tool_call_events     enable row level security;
 
 -- --- panels ----------------------------------------------------------------
 
@@ -197,6 +224,35 @@ create policy "events: instructors read classes they own"
       select 1
       from public.class_owners co
       where co.class_id = understanding_events.class_id
+        and co.owner_user_id = (select auth.uid())
+    )
+  );
+
+-- --- tool_call_events --------------------------------------------------------
+
+-- Intent: same authorship rule as panels/understanding_events — you can only
+-- log a tool call about your own session.
+drop policy if exists "tool_calls: students insert as themselves" on public.tool_call_events;
+create policy "tool_calls: students insert as themselves"
+  on public.tool_call_events for insert to authenticated
+  with check (student_id = (select auth.uid()));
+
+-- Intent: debugging a student's own session (e.g. from a support conversation).
+drop policy if exists "tool_calls: students read their own" on public.tool_call_events;
+create policy "tool_calls: students read their own"
+  on public.tool_call_events for select to authenticated
+  using (student_id = (select auth.uid()));
+
+-- Intent: instructors debugging "did the model even try to call this tool"
+-- for a class they own, same ownership rule as understanding_events.
+drop policy if exists "tool_calls: instructors read classes they own" on public.tool_call_events;
+create policy "tool_calls: instructors read classes they own"
+  on public.tool_call_events for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.class_owners co
+      where co.class_id = tool_call_events.class_id
         and co.owner_user_id = (select auth.uid())
     )
   );
@@ -436,6 +492,7 @@ alter default privileges in schema public grant all on sequences to service_role
 
 grant select, insert, update on public.panels               to authenticated;
 grant select, insert         on public.understanding_events to authenticated;
+grant select, insert         on public.tool_call_events     to authenticated;
 grant select, insert         on public.class_owners         to authenticated;
 grant select                 on public.prefill_panels       to authenticated;
 grant select, insert, update on public.conversation_owners  to authenticated;

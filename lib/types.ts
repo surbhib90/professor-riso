@@ -26,6 +26,20 @@ export interface UnderstandingCheck {
   attempt: number;
 }
 
+/**
+ * Raw audit record of one conversation.tool_call event, success or rejected.
+ * Separate from Panel/UnderstandingCheck, which only ever hold validated,
+ * applied writes — this is what answers "did the model even try to call
+ * this tool" during debugging.
+ */
+export interface ToolCallEvent {
+  toolName: string;
+  toolCallId: string;
+  args: Record<string, unknown>;
+  status: "ok" | "rejected";
+  reason?: string;
+}
+
 /** Everything the client needs to act as the state authority for a session. */
 export interface SessionContext {
   conversationId: string;
