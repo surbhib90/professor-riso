@@ -24,7 +24,12 @@ export const CANVAS_LAYOUT_SLOTS = [
   "safe-area-bottom",
   "full",
 ] as const;
-export const DEFAULT_CANVAS_LAYOUT_SLOT: CanvasLayoutSlot = "safe-area-right";
+// "safe-area-left" so a card with no explicit preferred_slot lands over the
+// video column, not the scratch sheet — the only other consumer of this
+// component (ConversationSurface) puts the interactive Excalidraw canvas and
+// its submit button in the right-hand column (app/conversation/ScratchPane.tsx),
+// and a card defaulting onto that side pointer-blocks drawing/submitting.
+export const DEFAULT_CANVAS_LAYOUT_SLOT: CanvasLayoutSlot = "safe-area-left";
 export const DEFAULT_CANVAS_SAFE_AREA: CanvasSafeArea = {
   x: 275 / 1280,
   y: 111 / 720,

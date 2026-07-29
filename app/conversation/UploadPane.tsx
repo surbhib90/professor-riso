@@ -48,8 +48,14 @@ export default function UploadPane({ concept, onUpload }: UploadPaneProps) {
   const busy = status.kind === "checking";
   const notice = noticeFor(status, concept);
 
+  const label = busy ? "Checking relevance…" : "Attach a photo or PDF";
+
   return (
-    <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+    // Icon-only and quieter than ScratchPane's send button on purpose: this is
+    // an occasional, optional aside, not a second control competing for
+    // attention next to the timed send-notes button it shares a row with —
+    // see ScratchPane's `children` slot, where ConversationSurface renders this.
+    <>
       <input
         type="file"
         accept={ACCEPT}
@@ -60,16 +66,33 @@ export default function UploadPane({ concept, onUpload }: UploadPaneProps) {
       />
       <label
         htmlFor="knowledge-upload-input"
-        className={`w-full cursor-pointer border-2 border-paper/60 px-4 py-2.5 text-center font-mono text-stamp uppercase text-paper transition-colors hover:border-yellow hover:text-yellow sm:w-auto sm:py-2 ${
+        aria-label={label}
+        title={label}
+        className={`inline-flex size-9 shrink-0 cursor-pointer items-center justify-center border border-paper/35 text-paper/65 transition-colors hover:border-yellow hover:text-yellow ${
           busy ? "pointer-events-none opacity-50" : ""
         }`}
       >
-        {busy ? "Checking relevance" : "Attach a photo or PDF"}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24L9.6 17.24a1 1 0 0 1-1.42-1.42l8.49-8.48" />
+        </svg>
       </label>
-      <p aria-live="polite" className="min-w-0 text-sm text-paper/80 sm:flex-1">
-        {notice}
-      </p>
-    </div>
+      {notice ? (
+        <span aria-live="polite" className="basis-full text-xs text-paper/60">
+          {notice}
+        </span>
+      ) : null}
+    </>
   );
 }
 

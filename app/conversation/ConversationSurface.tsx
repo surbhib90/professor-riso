@@ -60,8 +60,16 @@ import ScratchPane from "./ScratchPane";
 import UploadPane from "./UploadPane";
 import ZinePane from "./ZinePane";
 import CanvasQuestionCard from "./CanvasQuestionCard";
-import { MagicCanvas } from "@/app/components/cvi/components/magic-canvas";
+import { MagicCanvas, type CanvasRenderRegistry } from "@/app/components/cvi/components/magic-canvas";
 import { useSendAppMessage } from "@/app/components/cvi/hooks/cvi-events-hooks";
+
+// Hoisted: MagicCanvas is wrapped in React.memo, but a new object literal here
+// on every render (defeating that memo) would make it fully re-execute —
+// including its tool-call subscription and layout math — on every tick of the
+// wrap-up clock below, whether or not a canvas card is even showing.
+const CANVAS_RENDER_COMPONENTS: CanvasRenderRegistry = {
+  "canvas.question@v1": CanvasQuestionCard,
+};
 
 /** Matches the conversation's `max_call_duration` (D10). */
 const MAX_CALL_SECONDS = 600;
@@ -176,8 +184,12 @@ function ConversationInner({
    *  away", which are not the same decision. */
   const unloadingRef = useRef(false);
 
-  const panels = panelSlots(state);
-  const nextPanel = nextUnfinishedPanel(state);
+  // panelSlots allocates a fresh array every call — memoized on `state` so a
+  // render triggered by something unrelated (the once-a-second wrap-up clock
+  // tick, in particular) doesn't hand ZinePane a new array reference and
+  // defeat its memo for no reason.
+  const panels = useMemo(() => panelSlots(state), [state]);
+  const nextPanel = useMemo(() => nextUnfinishedPanel(state), [state]);
 
   // useSendAppMessage from @tavus/cvi-ui — uses DailyProvider's shared call
   // context. Adapts to MessageSender so lib/bridge.ts stays untouched.
@@ -361,7 +373,16 @@ function ConversationInner({
         );
       });
 
-      if (call.meetingState() === "new" || call.meetingState() === "left-meeting") {
+      // Guard against re-joining an already-connecting/connected call — NOT a
+      // narrower "new"/"left-meeting" allowlist. The call object reaching here
+      // is often the hair-check page's, reused via DailyIframe.getCallInstance()
+      // (that page's DailyProvider never destroys it on the Join path, only on
+      // Cancel), and its startCamera() preview already moved meetingState from
+      // "new" to "loaded". An allowlist of "new"/"left-meeting" silently skips
+      // join() for that (very common) case — no error, no event, permanently
+      // stuck on "connecting". daily-js's own join() only refuses when already
+      // "joining-meeting"/"joined-meeting", so match that instead.
+      if (call.meetingState() !== "joining-meeting" && call.meetingState() !== "joined-meeting") {
         await call.join({ url: conversation.conversationUrl, startVideoOff: true });
       }
     })().catch((err: unknown) => {
@@ -544,6 +565,17 @@ function ConversationInner({
     [conversationId, status, speaking, inFlight],
   );
 
+  // --- magic canvas ---------------------------------------------------------
+
+  const handleCanvasInteraction = useCallback(
+    (event: { component: string; type: string }) => {
+      // Client-side only — no server-side persistence for canvas interactions
+      // in this version (no dedicated route for canvas.interaction events yet).
+      console.log("[magic-canvas]", event.component, event.type);
+    },
+    [],
+  );
+
   // --- export --------------------------------------------------------------
 
   const handleExport = useCallback(async () => {
@@ -681,17 +713,18 @@ function ConversationInner({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <ScratchPane
               onSubmit={handleSubmit}
               busy={inFlight}
               notice={notice}
               panelHint={nextPanel}
-            />
-            <UploadPane
-              concept={concept}
-              onUpload={(file) => uploadKnowledgeFile(file, classId, concept)}
-            />
+            >
+              <UploadPane
+                concept={concept}
+                onUpload={(file) => uploadKnowledgeFile(file, classId, concept)}
+              />
+            </ScratchPane>
           </div>
         </div>
 
@@ -708,16 +741,7 @@ function ConversationInner({
           canvas.question@v1 renders as CanvasQuestionCard (native renderer);
           all other component types fall back to the iframe sandbox path. */}
       {status === "live" && (
-        <MagicCanvas
-          onInteraction={(event) => {
-            // Client-side only — no server-side persistence for canvas interactions
-            // in this version (no dedicated route for canvas.interaction events yet).
-            console.log("[magic-canvas]", event.component, event.type);
-          }}
-          renderComponent={{
-            "canvas.question@v1": CanvasQuestionCard,
-          }}
-        />
+        <MagicCanvas onInteraction={handleCanvasInteraction} renderComponent={CANVAS_RENDER_COMPONENTS} />
       )}
 
       {/* Video is muted so it can autoplay; the professor's voice lives here. */}

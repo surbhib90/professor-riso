@@ -8,7 +8,7 @@
  * Paper appears here because this surface IS the stock.
  */
 
-import type { CSSProperties, RefObject } from "react";
+import { memo, type CSSProperties, type RefObject } from "react";
 import type { Panel } from "@/lib/types";
 import { foldClass } from "@/lib/fold-sheet";
 
@@ -20,7 +20,7 @@ interface ZinePaneProps {
   sheetRef: RefObject<HTMLDivElement | null>;
 }
 
-export default function ZinePane({ panels, nextPanel, concept, sheetRef }: ZinePaneProps) {
+function ZinePane({ panels, nextPanel, concept, sheetRef }: ZinePaneProps) {
   const filled = panels.filter((panel) => panel !== null).length;
 
   return (
@@ -110,3 +110,5 @@ export default function ZinePane({ panels, nextPanel, concept, sheetRef }: ZineP
     </section>
   );
 }
+
+export default memo(ZinePane);

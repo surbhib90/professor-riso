@@ -20,7 +20,7 @@
 
 .slotRight,
 .slotLeft {
-	top: max(1rem, env(safe-area-inset-top));
+	top: max(4rem, env(safe-area-inset-top));
 	bottom: max(1rem, env(safe-area-inset-bottom));
 	width: min(28rem, calc(100vw - 2rem));
 	flex-direction: column;
