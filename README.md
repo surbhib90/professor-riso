@@ -2,7 +2,7 @@
 
 A generic teach → probe → artifact tutor, instantiated here as a patient, adaptive CS tutor teaching recursion: students write their own understanding of a concept on a shared canvas, Professor Riso tests it and re-explains once if shaky, then a finished 8-panel zine assembles live from the student's own notes.
 
-More on the motivation behind Professor Riso - [One Pager](https://github.com/surbhib90/professor-riso/ONE-PAGER.md)
+More on the motivation behind Professor Riso - [One pager](https://github.com/surbhib90/professor-riso/blob/main/ONE-PAGER.md)
 
 Stack: Next.js + TypeScript, deployed on Vercel. `@tavus/cvi-ui` (video conversation), `@excalidraw/excalidraw` (shared canvas), Supabase (Realtime + Postgres + Auth).
 
