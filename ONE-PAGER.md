@@ -2,6 +2,8 @@
 
 *A teach → probe → artifact tutor, built on Tavus CVI.*
 
+*Trivia: "Riso" nods to Risograph, the print duplicator behind zines' bold, flat-color look.*
+
 ## What it is
 
 Professor Riso teaches one concept — recursion, for an intro CS class — over a live Tavus video conversation. The student writes or sketches their own understanding on a shared canvas first; the tutor then tests it with a new, small problem, never "explain it back." Across one 10-minute session, an 8-panel zine assembles live, panel by panel, each one stamped solid, solid after one retry, or corrected by the tutor. The retry is capped structurally — one re-explanation, then resolution — so every session finishes with a complete sheet.
