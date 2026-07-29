@@ -5,8 +5,8 @@
     "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. If the difficulty is 0, skip prefill entirely: say one brief sentence transitioning into the first panel, then move on to it. If the difficulty is 2 or 4, say ONE brief sentence that you're pulling together a few worked examples — say this only once, never repeat it — then proceed silently into the prefill step; do not narrate, summarize, or announce it again.",
     "confirmation_mode": "auto",
     "conditional": {
-      "prefill_panel_1": "the session context explicitly states the difficulty level is the number 2, OR the session context explicitly states the difficulty level is the number 4 — check the exact stated number first, before considering the other branch",
-      "panel_1_await": "ONLY if the session context explicitly states the difficulty level is the number 0, or the difficulty value is genuinely absent from the session context, unrecognizable, or ambiguous — this is a narrow fallback, not the default; if the session context states 2 or 4, that branch above must be taken instead, never this one"
+      "prefill_panel_1": "the session context states the difficulty level is 2, or states the difficulty level is 4",
+      "panel_1_await": "the session context states the difficulty level is 0, or does not state a difficulty level at all"
     }
   },
   "prefillChain": [
@@ -21,8 +21,8 @@
       "objective_prompt": "Silently call the log_zine_page tool once for panel_number 2, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of panel 1. Never speak, narrate, or summarize this aloud.",
       "confirmation_mode": "auto",
       "next_conditional_objectives": {
-        "panel_3_await": "the session context states the difficulty is 2 — prefill is complete, move straight into the interactive panels",
-        "prefill_panel_3": "the session context states the difficulty is 4 — two more panels still need to be pre-filled"
+        "panel_3_await": "the session context states the difficulty level is 2",
+        "prefill_panel_3": "the session context states the difficulty level is 4"
       }
     },
     {
