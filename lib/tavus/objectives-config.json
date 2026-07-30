@@ -1,43 +1,15 @@
 {
-  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + up to 4 prefill nodes + 1 terminal = up to 38 nodes) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel. Rewritten 2026-07-29 per docs.tavus.io/sections/onboarding-guide/objectives (one objective per distinct outcome, name tool calls explicitly, keep the PAL system prompt from conflicting with the objectives) to fix panels not reliably logging: every step now explicitly names log_zine_page / log_understanding_check / canvas_clear, and the test/retest/reexplain steps explicitly choose a canvas.question Magic Canvas card for discrete-option questions vs. an explicit spoken instruction to answer on Excalidraw and click Send for open-ended ones. Prefill (0/2/4 worked-example panels) was originally ONE objective asking the model to silently self-loop 'panel_number 1 through the difficulty count' in a single turn — observed live to stall partway (e.g. 3 of 4 panels logged, then nothing) with no structural checkpoint to catch it. Decomposed 2026-07-29 into explicit prefillChain nodes, one per prefilled panel, same one-objective-per-outcome fix already applied to the main loop.",
+  "_comment": "TEMPLATE, not a ready graph. setup-tavus.mjs expands this into a FULL 8-panel chain (4 nodes per panel + 1 lead-in + 1 terminal) every time, regardless of difficulty. Difficulty (0/2/4) is a runtime choice told to the PAL via conversational_context, not a build-time shape — the lead-in node below branches to the right entry point based on that context. Panels before the entry point simply go unreached for that session; the graph still has to define them because it is provisioned once and difficulty varies per session. The graph MUST stay acyclic: Tavus accepts a cyclic graph at POST /v2/objectives and returns 200, but every conversation using it dies ~1s after startup with exception_encountered_during_conversation_startup (verified 2026-07-27, see docs/ARCHITECTURE.md T1 finding 2, decision D16). Do not add allow_loops or an edge back to an earlier panel. Rewritten 2026-07-29 per docs.tavus.io/sections/onboarding-guide/objectives (one objective per distinct outcome, name tool calls explicitly, keep the PAL system prompt from conflicting with the objectives). test/reexplain/retest make the spoken Excalidraw-and-Send instruction unconditionally required every time, with a canvas.question card only ever an optional bonus (never a replacement) when there are 2+ real discrete options. Prefill (0/2/4 worked-example panels) used to be the PAL's own job, live, via a chain of silent tool calls — observed unreliable (anywhere from 0 to 4 of the requested panels actually landing as real tool calls, the rest either never attempted or hallucinated as fake JSON text; see lib/anthropic/prefill.ts). Moved 2026-07-29 to server-side generation before the conversation is even created (app/api/conversation/route.ts's generateAndPersistPrefill) — the lead-in below no longer generates anything, it only branches straight to the correct entry panel, since panels 1..difficulty are already written to Supabase by the time the PAL reads this.",
   "leadIn": {
     "objective_name": "generate_prefill_examples",
-    "objective_prompt": "The session context already provides the concept and difficulty level (0, 2, or 4) — never ask the student for either. If the difficulty is 0, skip prefill entirely: say one brief sentence transitioning into the first panel, then move on to it. If the difficulty is 2 or 4, say ONE brief sentence that you're pulling together a few worked examples — say this only once, never repeat it — then proceed silently into the prefill step; do not narrate, summarize, or announce it again.",
+    "objective_prompt": "The session context states the difficulty level (0, 2, or 4) — never ask the student for it. If greater than 0, that many panels were already written to the sheet before this session started; say one brief sentence acknowledging that, then move straight into the next panel with the student. If 0, say one brief sentence and move to panel 1. Never regenerate, re-describe, or re-read aloud any panel that is already filled — you did not write them, they already exist.",
     "confirmation_mode": "auto",
     "conditional": {
-      "prefill_panel_1": "the session context states the difficulty level is 2, or states the difficulty level is 4",
-      "panel_1_await": "the session context states the difficulty level is 0, or does not state a difficulty level at all"
+      "panel_1_await": "the session context states the difficulty level is 0, or does not state a difficulty level at all",
+      "panel_3_await": "the session context states the difficulty level is 2",
+      "panel_5_await": "the session context states the difficulty level is 4"
     }
   },
-  "prefillChain": [
-    {
-      "objective_name": "prefill_panel_1",
-      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 1, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder. Never speak or write the words \"log_zine_page\", its arguments, or any JSON, and never narrate or summarize this panel's content aloud.",
-      "confirmation_mode": "auto",
-      "next_required_objective": "prefill_panel_2"
-    },
-    {
-      "objective_name": "prefill_panel_2",
-      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 2, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of panel 1. Never speak, narrate, or summarize this aloud.",
-      "confirmation_mode": "auto",
-      "next_conditional_objectives": {
-        "panel_3_await": "the session context states the difficulty level is 2",
-        "prefill_panel_3": "the session context states the difficulty level is 4"
-      }
-    },
-    {
-      "objective_name": "prefill_panel_3",
-      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 3, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of an earlier panel. Never speak, narrate, or summarize this aloud.",
-      "confirmation_mode": "auto",
-      "next_required_objective": "prefill_panel_4"
-    },
-    {
-      "objective_name": "prefill_panel_4",
-      "objective_prompt": "Silently call the log_zine_page tool once for panel_number 4, source \"prefill\", with a distinct, real worked example grounded in the attached course material — never a placeholder or a repeat of an earlier panel. Never speak, narrate, or summarize this aloud. Once logged, prefill is complete — move on to the interactive panels.",
-      "confirmation_mode": "auto",
-      "next_required_objective": "panel_5_await"
-    }
-  ],
   "panelChain": [
     {
       "suffix": "await",
@@ -46,7 +18,7 @@
     },
     {
       "suffix": "test",
-      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to \"explain it back\". If the question has discrete answer options, render it as a canvas.question Magic Canvas card. If it is open-ended, ask it aloud AND explicitly tell the student to write or sketch their answer on the Excalidraw canvas, then click \"Send notes to Professor Riso\" so you receive it — never wait silently for an Excalidraw answer without saying this out loud. A bare acknowledgment like \"yes\", \"okay\", or \"sure\" is not an answer — it does not count as solid, shaky, or confused; if that is all you receive, ask the question again and keep waiting for real content, never invent an answer on the student's behalf and never call log_understanding_check until you have one. Once you have a real answer, judge it solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 1.",
+      "objective_prompt": "Test understanding with a TRANSFER question: pose one small new problem and ask whether and how their concept applies to it. Never ask them to \"explain it back\". Ask it one of these three ways, chosen by what the answer actually is — for the first two, just ask naturally in speech, there is nothing to call or type, Tavus renders the card for you automatically from how you ask: (1) 2 or more real discrete options — speak the question and the options naturally as part of your sentence; a canvas.question card appears on its own. (2) A short typed answer, no drawing needed — ask for a brief typed answer naturally; a canvas.input text box appears on its own — this is the right choice for most non-multiple-choice questions. (3) The answer genuinely needs a sketch or diagram — only then explicitly tell the student to draw it on the Excalidraw canvas and click \"Send notes to Professor Riso\". Never ask for typed text via Excalidraw — path (2) is for that. A bare acknowledgment like \"yes\", \"okay\", or \"sure\" is not an answer — it does not count as solid, shaky, or confused; if that is all you receive, ask the question again and keep waiting for real content, never invent an answer on the student's behalf and never call log_understanding_check until you have one. Once you have a real answer, judge it solid, shaky, or confused, and call the log_understanding_check tool for panel {N}, attempt 1 — a real tool call, never written out as text or JSON.",
       "conditional": {
         "reexplain": "understanding is shaky or confused",
         "confirm": "understanding is solid"
@@ -54,12 +26,12 @@
     },
     {
       "suffix": "reexplain",
-      "objective_prompt": "Re-explain panel {N} more simply, from a different angle. Ask the student to answer once more — either revise their notes or answer a new small problem — using the same rule as before: a canvas.question Magic Canvas card for a question with discrete options, or the Excalidraw canvas plus an explicit spoken instruction to click \"Send notes to Professor Riso\" for an open-ended one. This is the only re-explanation for this panel. If a slide from the course material would help make this concrete, this is the moment to bring it up.",
+      "objective_prompt": "Re-explain panel {N} more simply, from a different angle. Ask the student to answer once more — either revise their notes or answer a new small problem. Same three-way choice as before: discrete options, ask naturally and a canvas.question card appears on its own; short typed answer, ask naturally and a canvas.input box appears on its own; genuine sketch or diagram, explicitly tell them to draw it on Excalidraw and click Send — never Excalidraw for typed text. This is the only re-explanation for this panel. If a slide from the course material would help make this concrete, this is the moment to bring it up.",
       "next": "retest"
     },
     {
       "suffix": "retest",
-      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never \"explain it back\", still following the canvas.question-card-or-Excalidraw-and-Send rule. A bare acknowledgment is still not an answer — if that is all you receive, ask again and keep waiting for real content before judging. Once you have a real answer, judge it solid, shaky, or confused, and call log_understanding_check for panel {N}, attempt 2. There is no third attempt regardless of the result.",
+      "objective_prompt": "Test the student's revised understanding with one more small TRANSFER question — different from attempt 1, still never \"explain it back\". Same three-way choice: discrete options, ask naturally and a canvas.question card appears on its own; short typed answer, ask naturally and a canvas.input box appears on its own; genuine sketch or diagram, explicitly tell them to draw it on Excalidraw and click Send — never Excalidraw for typed text. A bare acknowledgment is still not an answer — if that is all you receive, ask again and keep waiting for real content before judging. Once you have a real answer, judge it solid, shaky, or confused, and call the log_understanding_check tool for panel {N}, attempt 2 — a real tool call, never written out as text or JSON. There is no third attempt regardless of the result.",
       "conditional": {
         "gentle_correct": "understanding is still shaky or confused after the re-explanation",
         "confirm": "understanding is solid"

@@ -23,6 +23,8 @@ import {
   type Parsed,
 } from "@/lib/http-validation";
 import { buildTavusWebhookUrl } from "@/lib/tavus/webhook-url";
+import { fetchDocumentGroundingText } from "@/lib/tavus/document-summary";
+import { generatePrefillPanels } from "@/lib/anthropic/prefill";
 
 // The API key is read from the server process only. It is never returned in a
 // response body and never appears in an error message sent to the browser.
@@ -58,10 +60,12 @@ interface CreateConversationInput {
   concept: string;
   /**
    * Number of panels prefilled as worked examples: 0, 2 or 4 (D10 default 4).
-   * D19: this is purely informational context for the PAL now. The PAL
-   * generates the prefilled panels itself, live, at session start — the
-   * client no longer loads or writes them, so there is no prefilledPanels
-   * array to reconcile against.
+   * Drives two things here: which entry panel the PAL's objectives graph
+   * branches to (told to the PAL via conversational_context below), and how
+   * many panels generateAndPersistPrefill generates and writes to Supabase
+   * server-side, before this route even returns — the PAL itself no longer
+   * generates prefill content (that used to be a chain of silent tool calls
+   * at session start; observed unreliable live, see lib/anthropic/prefill.ts).
    */
   difficulty: number;
   priorProgress?: PriorProgress;
@@ -140,10 +144,11 @@ function parseBody(raw: unknown): Parsed<CreateConversationInput> {
  * short and declarative: this is prepended to a live conversation, so prose it
  * has to reason through costs turn latency.
  *
- * D19: the difficulty is now the ONLY prefill-related fact passed in. The
- * lead-in objective (generate_prefill_examples) branches to the right entry
- * panel by reading this statement, and the PAL generates the prefilled panels
- * itself rather than being told which numbers a client already filled.
+ * The difficulty is the only prefill-related fact passed in here. The
+ * lead-in objective (generate_prefill_examples) branches straight to the
+ * right entry panel by reading this statement — panels 1..difficulty are
+ * already written to Supabase by the time the PAL reads this (see
+ * generateAndPersistPrefill), so the PAL never generates or re-describes them.
  */
 function buildConversationalContext(input: CreateConversationInput): string {
   // The topic is caller-supplied free text. It is fenced and labelled so the
@@ -351,8 +356,83 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // Prefill generation and write, best-effort and AWAITED: a failure here
+  // must not fail conversation creation (it degrades gracefully either way —
+  // the PAL's own wrap-up step already fills any panel the student never
+  // reached), but the write must complete before this response returns, or
+  // the panels would not exist yet when the client (having been sent here
+  // from hair-check specifically to hide this latency) rehydrates them on
+  // /conversation mount. See lib/anthropic/prefill.ts for why this moved off
+  // the live conversation entirely (that chain of silent tool calls was
+  // unreliable).
+  if (input.difficulty > 0) {
+    await generateAndPersistPrefill({
+      supabase,
+      conversationId,
+      studentId,
+      classId: input.classId,
+      concept: input.concept,
+      difficulty: input.difficulty,
+      groundingDocumentIds: topicDocumentIds.length > 0 ? topicDocumentIds : defaultDocumentIds(),
+      apiKey,
+    });
+  }
+
   const payload: CreateConversationResponse = { conversationId, conversationUrl };
   return Response.json(payload, { status: 201 });
+}
+
+/** TAVUS_DOCUMENT_IDS is the PAL's own baked-in grounding set — same fallback
+ *  scripts/seed-prefill.mjs uses when a topic has no curated documents yet. */
+function defaultDocumentIds(): string[] {
+  return (process.env.TAVUS_DOCUMENT_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+interface GeneratePrefillInput {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  conversationId: string;
+  studentId: string;
+  classId: string;
+  concept: string;
+  difficulty: number;
+  groundingDocumentIds: string[];
+  apiKey: string;
+}
+
+async function generateAndPersistPrefill(input: GeneratePrefillInput): Promise<void> {
+  try {
+    const groundingText = await fetchDocumentGroundingText(
+      input.groundingDocumentIds,
+      input.apiKey
+    );
+    const panels = await generatePrefillPanels(input.concept, input.difficulty, groundingText);
+
+    const rows = panels.map((panel) => ({
+      conversation_id: input.conversationId,
+      student_id: input.studentId,
+      class_id: input.classId,
+      concept: input.concept,
+      panel_number: panel.panelNumber,
+      text: panel.text,
+      visual_note: panel.visualNote ?? null,
+      source: "prefill" as const,
+      mastery: "none" as const,
+    }));
+
+    const { error } = await input.supabase.from("panels").insert(rows);
+    if (error) {
+      console.error(
+        `/api/conversation: prefill panel insert failed for ${input.conversationId}: ${error.message}`
+      );
+    }
+  } catch (err) {
+    console.error(
+      `/api/conversation: prefill generation failed for ${input.conversationId}: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 }
 
 /**

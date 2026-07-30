@@ -150,10 +150,26 @@ export function submitNotes(
  * client also states the new truth out loud as a user turn: the client stays
  * the state authority whether or not tool_result lands.
  */
-export function panelSavedNudge(panelNumber: number, nextPanel: number | null): string {
-  return nextPanel === null
-    ? `Panel ${panelNumber} saved. Every panel is filled now.`
-    : `Panel ${panelNumber} saved. The next unfinished panel is ${nextPanel}.`;
+/**
+ * Wording depends on the panel's source: a "prefill" save happens mid-silent-
+ * sequence, and the plain "next unfinished panel is N" phrasing reads as "go
+ * engage the student on N" — observed live pulling the model out of the
+ * prefillChain and into interactive mode after just one prefilled panel,
+ * regardless of what the objective_prompt said. A "student" save is already
+ * mid-interactive-conversation, where that phrasing is exactly right.
+ */
+export function panelSavedNudge(
+  panelNumber: number,
+  nextPanel: number | null,
+  source: "prefill" | "student",
+): string {
+  if (nextPanel === null) {
+    return `Panel ${panelNumber} saved. Every panel is filled now.`;
+  }
+  if (source === "prefill") {
+    return `Panel ${panelNumber} logged silently. If panel ${nextPanel} is also meant to be pre-filled per the difficulty pick, continue silently — do not speak or engage the student yet. Otherwise begin the interactive panel ${nextPanel} with the student now.`;
+  }
+  return `Panel ${panelNumber} saved. The next unfinished panel is ${nextPanel}.`;
 }
 
 export function injectPanelSavedNudge(
@@ -161,11 +177,12 @@ export function injectPanelSavedNudge(
   conversationId: string,
   panelNumber: number,
   nextPanel: number | null,
+  source: "prefill" | "student",
 ): boolean {
   return sendConversationRespond(
     sender,
     conversationId,
-    panelSavedNudge(panelNumber, nextPanel),
+    panelSavedNudge(panelNumber, nextPanel, source),
   );
 }
 

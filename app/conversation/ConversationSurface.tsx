@@ -310,24 +310,28 @@ function ConversationInner({
       if (resumed) {
         // Rehydrate BEFORE joining: Daily does not replay app-messages, so a
         // mid-session refresh would otherwise blank a sheet the student earned.
-        // No prefill fallback needed here (D19): whatever prefill panels exist
-        // for this conversation were already written by the PAL's own tool
-        // calls, so an empty result just means generation had not landed yet
-        // when the refresh happened — the PAL is still mid-generation and will
-        // pick up where the objectives graph left off.
+        // Also the expected path on a fresh join now, not just a refresh:
+        // hair-check pre-creates the conversation and (server-side, awaited)
+        // writes any prefill panels before the student ever reaches this page
+        // — see app/api/conversation/route.ts's generateAndPersistPrefill. An
+        // empty result here just means prefill generation failed or wasn't
+        // requested (difficulty 0); the PAL's wrap-up step covers the gap.
         conversation = resumed;
         startedAtRef.current = resumed.startedAt;
         panels = await fetchSessionPanels(conversation.conversationId);
       } else {
-        // D19: the PAL generates the prefilled panels itself, live, as the
-        // first thing it does — there is nothing for the client to precompute
-        // or write before starting the call. The sheet starts empty and fills
-        // in through the same tool-call path as every other panel.
-        panels = [];
+        // Fallback only: hair-check normally pre-creates the conversation
+        // (and writes prefill server-side) before the student ever lands
+        // here — this branch is what runs if that never happened (private
+        // browsing blocked sessionStorage, hair-check's own pre-create
+        // failed, or this page was reached directly). startConversation
+        // still triggers the same server-side prefill write; re-fetch after
+        // it resolves rather than assuming an empty sheet.
         const createdAt = Date.now();
         conversation = await startConversation({ classId, studentId, concept, difficulty });
         rememberConversation(classId, concept, difficulty, conversation, createdAt);
         startedAtRef.current = createdAt;
+        panels = await fetchSessionPanels(conversation.conversationId);
       }
       if (cancelled) return;
 

@@ -258,18 +258,29 @@ describe("conversation.tool_result wire format", () => {
 });
 
 describe("state nudges", () => {
-  it("states the saved panel and the next one to work on", () => {
-    expect(panelSavedNudge(1, 2)).toBe("Panel 1 saved. The next unfinished panel is 2.");
+  it("states the saved panel and the next one to work on, for a student-authored panel", () => {
+    expect(panelSavedNudge(1, 2, "student")).toBe("Panel 1 saved. The next unfinished panel is 2.");
   });
 
   it("states completion when no panel is left", () => {
-    expect(panelSavedNudge(8, null)).toBe("Panel 8 saved. Every panel is filled now.");
+    expect(panelSavedNudge(8, null, "student")).toBe("Panel 8 saved. Every panel is filled now.");
+  });
+
+  it("reinforces staying silent for a prefill panel, instead of prompting engagement", () => {
+    const nudge = panelSavedNudge(1, 2, "prefill");
+    expect(nudge).toContain("logged silently");
+    expect(nudge).toContain("continue silently");
+    expect(nudge).not.toContain("The next unfinished panel is");
+  });
+
+  it("still states plain completion for the last prefill panel, source does not matter once nextPanel is null", () => {
+    expect(panelSavedNudge(4, null, "prefill")).toBe("Panel 4 saved. Every panel is filled now.");
   });
 
   it("injects the nudge as a user turn, the only path verified to reach the model", () => {
     const sender = fakeSender();
 
-    expect(injectPanelSavedNudge(sender, CONVERSATION_ID, 5, 6)).toBe(true);
+    expect(injectPanelSavedNudge(sender, CONVERSATION_ID, 5, 6, "student")).toBe(true);
     expect(sender.sent[0]).toEqual({
       message_type: "conversation",
       event_type: "conversation.respond",

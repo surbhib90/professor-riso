@@ -175,7 +175,7 @@ export function handleAppMessage(raw: unknown, deps: HandlerDeps): HandlerOutcom
     // Fallback path (unverified tool_result round trip): state the new truth as
     // a user turn, which IS verified to reach the model.
     const nextPanel = deps.nextUnfinishedPanel();
-    injectPanelSavedNudge(deps.sender, deps.conversationId, panelNumber, nextPanel);
+    injectPanelSavedNudge(deps.sender, deps.conversationId, panelNumber, nextPanel, source);
 
     return { kind: "panel-logged", panelNumber, nextPanel };
   }
