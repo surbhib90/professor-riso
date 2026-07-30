@@ -69,6 +69,25 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: 400 });
   }
 
+  const supabase = createServiceClient();
+
+  // Persist every event Tavus sends to this callback_url, not just the ones
+  // acted on below — this is what makes "did the webhook even arrive" a
+  // query instead of a guess (see webhook_events table comment in
+  // supabase/schema.sql; motivated by the PUBLIC_APP_URL callback_url bug
+  // that broke delivery silently with no way to notice from this app alone).
+  // Best-effort: a logging failure must never break the 200 back to Tavus.
+  if (isRecord(body) && typeof body.event_type === "string") {
+    const { error: eventLogError } = await supabase.from("webhook_events").insert({
+      conversation_id: typeof body.conversation_id === "string" ? body.conversation_id : null,
+      event_type: body.event_type,
+      properties: isRecord(body.properties) ? body.properties : {},
+    });
+    if (eventLogError) {
+      console.error(`/api/tavus/session-summary: webhook_events insert failed: ${eventLogError.message}`);
+    }
+  }
+
   // system.shutdown carries why a conversation actually died (crash at
   // startup, replica error, hard duration cap) — the one event type here
   // that is worth a log line on its own, since Tavus gives no other way to
@@ -101,8 +120,6 @@ export async function POST(request: Request): Promise<Response> {
     );
     return new Response(null, { status: 200 });
   }
-
-  const supabase = createServiceClient();
 
   // conversation_owners is the authoritative student_id/class_id for this
   // conversation_id — set by /api/conversation at creation time, never taken

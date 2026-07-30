@@ -6,9 +6,10 @@ import { createClient as createSupabaseClient, type SupabaseClient } from "@supa
  * runs as the signed-in user so RLS is the real access control; this client
  * bypasses RLS entirely and must only be used where that is correct.
  *
- * That is exactly one caller: /api/tavus/session-summary. Tavus posts to
- * that webhook server-to-server, with no Supabase session to bind — a
- * shared-secret check in the route stands in for RLS on that write.
+ * Callers: /api/tavus/session-summary (Tavus posts server-to-server, no
+ * Supabase session to bind — a shared-secret check stands in for RLS) and
+ * /api/cron/webhook-health (Vercel Cron invokes it, same reasoning — no
+ * user session, auth is the CRON_SECRET bearer check instead).
  */
 export function createServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

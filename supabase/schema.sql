@@ -99,6 +99,32 @@ create index if not exists tool_call_events_conversation_idx
   on public.tool_call_events (conversation_id, created_at);
 
 -- ---------------------------------------------------------------------------
+-- webhook_events — raw audit log of every event Tavus sends to this app's
+-- callback_url (system.shutdown, transcription_ready, perception_analysis,
+-- post_call_action_executed, ...), not just the ones a route currently acts
+-- on. Motivated by two 2026-07-30 incidents: a session that died early with
+-- no visible reason (system.shutdown was being silently dropped), and a
+-- PUBLIC_APP_URL bug that broke webhook delivery entirely with no way to
+-- notice short of manually diffing session_summaries against known
+-- conversations. This table plus the /api/cron/webhook-health check make
+-- both failure modes visible without a live-session postmortem. Written
+-- only by the service-role webhook handlers (same model as
+-- session_summaries below) — no client write path, no RLS policies needed.
+-- ---------------------------------------------------------------------------
+create table if not exists public.webhook_events (
+  id              uuid        primary key default gen_random_uuid(),
+  conversation_id text,
+  event_type      text        not null,
+  properties      jsonb       not null default '{}'::jsonb,
+  received_at     timestamptz not null default now()
+);
+
+create index if not exists webhook_events_conversation_idx
+  on public.webhook_events (conversation_id);
+create index if not exists webhook_events_type_time_idx
+  on public.webhook_events (event_type, received_at);
+
+-- ---------------------------------------------------------------------------
 -- class_owners — the instructor gate.
 --
 -- One owner per class_id, enforced by the unique constraint below, not just
@@ -169,6 +195,9 @@ alter table public.understanding_events enable row level security;
 alter table public.class_owners         enable row level security;
 alter table public.prefill_panels       enable row level security;
 alter table public.tool_call_events     enable row level security;
+-- No policies below for webhook_events, deliberately: nobody but service_role
+-- (which bypasses RLS) should ever read or write this table.
+alter table public.webhook_events       enable row level security;
 
 -- --- panels ----------------------------------------------------------------
 
