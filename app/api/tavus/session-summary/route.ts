@@ -69,6 +69,17 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: 400 });
   }
 
+  // system.shutdown carries why a conversation actually died (crash at
+  // startup, replica error, hard duration cap) — the one event type here
+  // that is worth a log line on its own, since Tavus gives no other way to
+  // see it (not present in GET /conversations either).
+  if (isRecord(body) && body.event_type === "system.shutdown") {
+    console.error(
+      `/api/tavus/session-summary: system.shutdown for ${body.conversation_id ?? "unknown"}: ${JSON.stringify(body.properties ?? {}).slice(0, 500)}`
+    );
+    return new Response(null, { status: 200 });
+  }
+
   // Every other event type Tavus sends to this callback_url (transcription,
   // perception, speaking state, ...) — and the tool's own envelope-less
   // delivery.api POST — land here too. Acknowledge and drop both silently;
