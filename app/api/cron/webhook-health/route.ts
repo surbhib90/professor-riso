@@ -75,23 +75,38 @@ async function findWebhookSilence(
   return (conversationCount ?? 0) > 0 && (eventCount ?? 0) === 0;
 }
 
+/**
+ * Alerts via Resend's HTTP API directly (docs.resend.com/api-reference/emails/send-email)
+ * rather than their SDK — this route already hand-rolls fetch for everything
+ * else, no reason to add a dependency for one call.
+ */
 async function alert(message: string): Promise<void> {
-  const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!slackWebhookUrl) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const alertEmailTo = process.env.ALERT_EMAIL_TO;
+  const alertEmailFrom = process.env.ALERT_EMAIL_FROM;
+  if (!resendApiKey || !alertEmailTo || !alertEmailFrom) {
     console.error(`/api/cron/webhook-health: ${message}`);
     return;
   }
   try {
-    const response = await fetch(slackWebhookUrl, {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: message }),
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: alertEmailFrom,
+        to: alertEmailTo,
+        subject: "Professor Riso: webhook health alert",
+        text: message,
+      }),
     });
     if (!response.ok) {
-      console.error(`/api/cron/webhook-health: Slack POST failed with status ${response.status}`);
+      console.error(`/api/cron/webhook-health: Resend POST failed with status ${response.status}`);
     }
   } catch (err) {
-    console.error(`/api/cron/webhook-health: Slack POST threw: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`/api/cron/webhook-health: Resend POST threw: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
